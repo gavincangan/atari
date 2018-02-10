@@ -2,7 +2,7 @@ import gym
 import numpy as np
 # import cv2 as cv
 import keras
-import ring_buffer
+from ring_buffer import RingBuffer
 
 
 def to_grayscale(img):
@@ -121,63 +121,70 @@ def main():
     frame = env.reset()
     env.render()
 
-    is_done = False
     frames_per_action = 4
     num_actions = 4
-    ATARI_SHAPE = (105, 80, 4)
-    iter_count = 0
+    ATARI_SHAPE_PLUSONE = (105, 80, 5)
+    num_games = 10
 
-    this_states = np.empty(ATARI_SHAPE)
-    this_rewards = np.empty(4)
+    this_states = RingBuffer(5)
+    this_rewards = RingBuffer(4)
 
-    all_states = []
+    all_prev_states = []
+    all_next_states = []
     all_actions = []
     all_rewards = []
     all_isterminal = []
 
     # print('a')
-    while not is_done:
-        this_action = env.action_space.sample()
-        # print('b')
-        this_action_onehot = action_to_onehot(this_action)
-        for action_count in range(0,frames_per_action):
-            # print('c')
-            frame, reward, is_done, _ = env.step(this_action)
-            this_rewards[action_count] = transform_reward(reward)
-            this_states[:, :, action_count] = preprocess(frame)
-            if not is_done:
-                env.render()
-            else:
-                frame = env.reset()
-                env.render()
-                break
-        all_states.append(this_states)
-        all_rewards.append(this_rewards)
-        all_actions.append(this_action)
-        all_isterminal.append(int(is_done))
-            # is_done = False
-        iter_count += 1
-        # input()
-
-    np_states = np.asarray(all_states)
-    np_previous_states = np_states[:-1,:,:,:]
-    # print('prev states: ',np.shape(np_previous_states))
-    np_next_states = np_states[1:,:,:,:]
+    prev_frame = preprocess(frame)
+    for this_game in range(0,num_games):
+        iter_count = 0
+        is_done = False
+        while not is_done:
+            this_action = env.action_space.sample()
+            # print('b')
+            this_action_onehot = action_to_onehot(this_action)
+            this_states.append(prev_frame)
+            for action_count in range(0,frames_per_action):
+                # print('c')
+                frame, reward, is_done, _ = env.step(this_action)
+                this_states.append(preprocess(frame))
+                this_rewards.append(transform_reward(reward))
+                if not is_done:
+                    env.render()
+                else:
+                    frame = env.reset()
+                    env.render()
+                    break
+            prev_frame = frame
+            if(iter_count>0):
+                all_prev_states.append(this_states.clip_from_end(1))
+                all_next_states.append(this_states.clip_from_start(1))
+                all_rewards.append(this_rewards)
+                all_actions.append(this_action)
+                all_isterminal.append(int(is_done))
+                # is_done = False
+            iter_count += 1
+            # input()
+    np_prev_states = np.asarray(all_prev_states)
+    # print('prev states: ',np.shape(np_prev_states))
+    np_next_states = np.asarray(all_next_states)
     # print('next states: ',np.shape(np_next_states))
     np_rewards = np.asarray(all_rewards)
-    np_rewards = np_rewards[:-1,:]
+    # np_rewards = np_rewards[:-1,:]
     # print('rewards: ',np.shape(np_rewards))
     np_actions = np.asarray(all_actions)
-    np_actions = np_actions[:-1]
+    # np_actions = np_actions[:-1]
     # print('actions: ',np.shape(np_actions))
     np_isterminal = np.asarray(all_isterminal)
-    np_isterminal = np_isterminal[:-1]
+    # np_isterminal = np_isterminal[:-1]
     # print('isterminal: ',np.shape(np_isterminal))
 
     np_num_objects = np.size(np_isterminal)
     # print('num_objects:',np_num_objects)
 
     t_model = atari_model(num_actions)
+
 
 if __name__=="__main__":
     main()

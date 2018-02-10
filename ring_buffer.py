@@ -1,4 +1,4 @@
-class RingBuf:
+class RingBuffer:
     def __init__(self, size):
         # Pro-tip: when implementing a ring buffer, always allocate one extra element,
         # this way, self.start == self.end always means the buffer is EMPTY, whereas
@@ -24,6 +24,12 @@ class RingBuf:
             return self.end + len(self.data) - self.start
         else:
             return self.end - self.start
+
+    def clip_from_start(self, idx):
+        return self.data[idx:]
+
+    def clip_from_end(self, idx):
+        return self.data[:-idx]
 
     def __iter__(self):
         for i in range(len(self)):
