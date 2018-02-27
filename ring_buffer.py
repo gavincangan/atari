@@ -1,3 +1,6 @@
+import random
+from secrets import randbelow
+
 class RingBuffer:
     def __init__(self, size):
         # Pro-tip: when implementing a ring buffer, always allocate one extra element,
@@ -30,6 +33,10 @@ class RingBuffer:
 
     def clip_from_end(self, idx):
         return self.data[:-idx]
+
+    def rand_sample(self, num_elements):
+        rand_indices = [ randbelow(self.end) for p in range(0, num_elements) ]
+        return self.data[rand_indices]
 
     def __iter__(self):
         for i in range(len(self)):
